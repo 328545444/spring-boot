@@ -34,7 +34,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
@@ -86,9 +85,6 @@ public class LoggingApplicationListenerTests {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
-
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Rule
 	public OutputCapture outputCapture = new OutputCapture();
@@ -219,8 +215,10 @@ public class LoggingApplicationListenerTests {
 		this.initializer.initialize(this.context.getEnvironment(),
 				this.context.getClassLoader());
 		Log logger = LogFactory.getLog(LoggingApplicationListenerTests.class);
+		String existingOutput = this.outputCapture.toString();
 		logger.info("Hello world");
-		String output = this.outputCapture.toString().trim();
+		String output = this.outputCapture.toString().substring(existingOutput.length())
+				.trim();
 		assertThat(output).startsWith("target/foo.log");
 	}
 
@@ -244,8 +242,10 @@ public class LoggingApplicationListenerTests {
 		this.initializer.initialize(this.context.getEnvironment(),
 				this.context.getClassLoader());
 		Log logger = LogFactory.getLog(LoggingApplicationListenerTests.class);
+		String existingOutput = this.outputCapture.toString();
 		logger.info("Hello world");
-		String output = this.outputCapture.toString().trim();
+		String output = this.outputCapture.toString().substring(existingOutput.length())
+				.trim();
 		assertThat(output).startsWith("target/foo/spring.log");
 	}
 

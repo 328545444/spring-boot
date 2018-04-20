@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 
 import javax.servlet.Servlet;
@@ -66,6 +65,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.core.io.ClassPathResource;
@@ -168,6 +168,7 @@ public class WebMvcAutoConfiguration {
 	@Configuration
 	@Import(EnableWebMvcConfiguration.class)
 	@EnableConfigurationProperties({ WebMvcProperties.class, ResourceProperties.class })
+	@Order(0)
 	public static class WebMvcAutoConfigurationAdapter
 			implements WebMvcConfigurer, ResourceLoaderAware {
 
@@ -234,9 +235,7 @@ public class WebMvcAutoConfiguration {
 			}
 			Map<String, MediaType> mediaTypes = this.mvcProperties.getContentnegotiation()
 					.getMediaTypes();
-			for (Entry<String, MediaType> mediaType : mediaTypes.entrySet()) {
-				configurer.mediaType(mediaType.getKey(), mediaType.getValue());
-			}
+			mediaTypes.forEach(configurer::mediaType);
 		}
 
 		@Bean

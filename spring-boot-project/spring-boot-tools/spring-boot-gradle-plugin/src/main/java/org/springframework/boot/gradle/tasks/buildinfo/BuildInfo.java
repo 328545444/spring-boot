@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.gradle.api.Action;
 import org.gradle.api.Project;
@@ -39,6 +38,7 @@ import org.springframework.boot.loader.tools.BuildPropertiesWriter.ProjectDetail
  * {@code Project}.
  *
  * @author Andy Wilkinson
+ * @since 2.0.0
  */
 public class BuildInfo extends ConventionTask {
 
@@ -73,7 +73,6 @@ public class BuildInfo extends ConventionTask {
 	/**
 	 * Returns the directory to which the {@code build-info.properties} file will be
 	 * written. Defaults to the {@link Project#getBuildDir() Project's build directory}.
-	 *
 	 * @return the destination directory
 	 */
 	@OutputDirectory
@@ -110,9 +109,7 @@ public class BuildInfo extends ConventionTask {
 
 	private Map<String, String> coerceToStringValues(Map<String, Object> input) {
 		Map<String, String> output = new HashMap<>();
-		for (Entry<String, Object> entry : input.entrySet()) {
-			output.put(entry.getKey(), entry.getValue().toString());
-		}
+		input.forEach((key, value) -> output.put(key, value.toString()));
 		return output;
 	}
 

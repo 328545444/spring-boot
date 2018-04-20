@@ -35,28 +35,16 @@ import org.springframework.util.StringUtils;
  * @since 1.2.0
  * @see JsonParserFactory
  */
-public class BasicJsonParser implements JsonParser {
+public class BasicJsonParser extends AbstractJsonParser {
 
 	@Override
 	public Map<String, Object> parseMap(String json) {
-		if (json != null) {
-			json = json.trim();
-			if (json.startsWith("{")) {
-				return parseMapInternal(json);
-			}
-		}
-		throw new IllegalArgumentException("Cannot parse JSON");
+		return parseMap(json, this::parseMapInternal);
 	}
 
 	@Override
 	public List<Object> parseList(String json) {
-		if (json != null) {
-			json = json.trim();
-			if (json.startsWith("[")) {
-				return parseListInternal(json);
-			}
-		}
-		throw new IllegalArgumentException("Cannot parse JSON");
+		return parseList(json, this::parseListInternal);
 	}
 
 	private List<Object> parseListInternal(String json) {
@@ -124,6 +112,7 @@ public class BasicJsonParser implements JsonParser {
 		int index = 0;
 		int inObject = 0;
 		int inList = 0;
+		boolean inValue = false;
 		StringBuilder build = new StringBuilder();
 		while (index < json.length()) {
 			char current = json.charAt(index);
@@ -139,7 +128,10 @@ public class BasicJsonParser implements JsonParser {
 			if (current == ']') {
 				inList--;
 			}
-			if (current == ',' && inObject == 0 && inList == 0) {
+			if (current == '"') {
+				inValue = !inValue;
+			}
+			if (current == ',' && inObject == 0 && inList == 0 && !inValue) {
 				list.add(build.toString());
 				build.setLength(0);
 			}

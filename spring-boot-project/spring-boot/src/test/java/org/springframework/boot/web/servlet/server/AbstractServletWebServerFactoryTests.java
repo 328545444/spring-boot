@@ -44,8 +44,6 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.GZIPInputStream;
@@ -120,6 +118,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -621,8 +620,8 @@ public abstract class AbstractServletWebServerFactoryTests {
 				httpClient);
 		assertThat(getResponse(getLocalUrl("https", "/test.txt"), requestFactory))
 				.isEqualTo("test");
-		verify(sslStoreProvider).getKeyStore();
-		verify(sslStoreProvider).getTrustStore();
+		verify(sslStoreProvider, atLeastOnce()).getKeyStore();
+		verify(sslStoreProvider, atLeastOnce()).getTrustStore();
 	}
 
 	@Test
@@ -866,12 +865,9 @@ public abstract class AbstractServletWebServerFactoryTests {
 		AbstractServletWebServerFactory factory = getFactory();
 		this.webServer = factory.getWebServer();
 		Map<String, String> configuredMimeMappings = getActualMimeMappings();
-		Set<Entry<String, String>> entrySet = configuredMimeMappings.entrySet();
 		Collection<MimeMappings.Mapping> expectedMimeMappings = getExpectedMimeMappings();
-		for (Entry<String, String> entry : entrySet) {
-			assertThat(expectedMimeMappings)
-					.contains(new MimeMappings.Mapping(entry.getKey(), entry.getValue()));
-		}
+		configuredMimeMappings.forEach((key, value) -> assertThat(expectedMimeMappings).
+				contains(new MimeMappings.Mapping(key, value)));
 		for (MimeMappings.Mapping mapping : expectedMimeMappings) {
 			assertThat(configuredMimeMappings).containsEntry(mapping.getExtension(),
 					mapping.getMimeType());
@@ -938,7 +934,6 @@ public abstract class AbstractServletWebServerFactoryTests {
 		doWithBlockedPort((port) -> {
 			try {
 				AbstractServletWebServerFactory factory = getFactory();
-				factory.setPort(SocketUtils.findAvailableTcpPort(40000));
 				addConnector(port, factory);
 				AbstractServletWebServerFactoryTests.this.webServer = factory
 						.getWebServer();

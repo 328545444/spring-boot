@@ -23,6 +23,7 @@ import com.rabbitmq.client.Channel;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionNameStrategy;
 import org.springframework.amqp.rabbit.connection.RabbitConnectionFactoryBean;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitMessagingTemplate;
@@ -93,7 +94,9 @@ public class RabbitAutoConfiguration {
 
 		@Bean
 		public CachingConnectionFactory rabbitConnectionFactory(
-				RabbitProperties properties) throws Exception {
+				RabbitProperties properties,
+				ObjectProvider<ConnectionNameStrategy> connectionNameStrategy)
+				throws Exception {
 			PropertyMapper map = PropertyMapper.get();
 			CachingConnectionFactory factory = new CachingConnectionFactory(
 					getRabbitConnectionFactoryBean(properties).getObject());
@@ -109,6 +112,8 @@ public class RabbitAutoConfiguration {
 			map.from(connection::getMode).whenNonNull().to(factory::setCacheMode);
 			map.from(connection::getSize).whenNonNull()
 					.to(factory::setConnectionCacheSize);
+			map.from(connectionNameStrategy::getIfUnique).whenNonNull()
+					.to(factory::setConnectionNameStrategy);
 			return factory;
 		}
 
@@ -162,7 +167,7 @@ public class RabbitAutoConfiguration {
 
 		@Bean
 		@ConditionalOnSingleCandidate(ConnectionFactory.class)
-		@ConditionalOnMissingBean(RabbitTemplate.class)
+		@ConditionalOnMissingBean
 		public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
 			PropertyMapper map = PropertyMapper.get();
 			RabbitTemplate template = new RabbitTemplate(connectionFactory);
@@ -208,7 +213,7 @@ public class RabbitAutoConfiguration {
 		@Bean
 		@ConditionalOnSingleCandidate(ConnectionFactory.class)
 		@ConditionalOnProperty(prefix = "spring.rabbitmq", name = "dynamic", matchIfMissing = true)
-		@ConditionalOnMissingBean(AmqpAdmin.class)
+		@ConditionalOnMissingBean
 		public AmqpAdmin amqpAdmin(ConnectionFactory connectionFactory) {
 			return new RabbitAdmin(connectionFactory);
 		}

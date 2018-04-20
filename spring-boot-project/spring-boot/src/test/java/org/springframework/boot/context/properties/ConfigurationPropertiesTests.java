@@ -462,6 +462,18 @@ public class ConfigurationPropertiesTests {
 	}
 
 	@Test
+	public void loadWhenDotsInSystemEnvironmentPropertiesShouldBind() {
+		this.context.getEnvironment().getPropertySources()
+				.addLast(new SystemEnvironmentPropertySource(
+						StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME,
+						Collections.singletonMap("com.example.bar", "baz")));
+		load(SimplePrefixedProperties.class);
+		SimplePrefixedProperties bean = this.context
+				.getBean(SimplePrefixedProperties.class);
+		assertThat(bean.getBar()).isEqualTo("baz");
+	}
+
+	@Test
 	public void loadWhenOverridingPropertiesShouldBind() {
 		MutablePropertySources sources = this.context.getEnvironment()
 				.getPropertySources();
@@ -743,6 +755,11 @@ public class ConfigurationPropertiesTests {
 		load(FileProperties.class, "test.file=.");
 		FileProperties bean = this.context.getBean(FileProperties.class);
 		assertThat(bean.getFile()).isEqualTo(new File("."));
+	}
+
+	@Test
+	public void loadWhenTopLevelConverterNotFoundExceptionShouldNotFail() {
+		load(PersonProperties.class, "test=boot");
 	}
 
 	private AnnotationConfigApplicationContext load(Class<?> configuration,

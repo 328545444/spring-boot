@@ -308,6 +308,9 @@ public class Binder {
 
 	private ConfigurationProperty findProperty(ConfigurationPropertyName name,
 			Context context) {
+		if (name.isEmpty()) {
+			return null;
+		}
 		return context.streamSources()
 				.map((source) -> source.getConfigurationProperty(name))
 				.filter(Objects::nonNull).findFirst().orElse(null);

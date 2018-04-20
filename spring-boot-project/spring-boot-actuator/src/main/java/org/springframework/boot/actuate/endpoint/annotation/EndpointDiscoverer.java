@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -317,10 +316,6 @@ public abstract class EndpointDiscoverer<E extends ExposableEndpoint<O>, O exten
 				.get();
 	}
 
-	public <A, B> void doIt(Function<A, B> x) {
-
-	}
-
 	private E getFilterEndpoint(EndpointBean endpointBean) {
 		E endpoint = this.filterEndpoints.get(endpointBean);
 		if (endpoint == null) {
@@ -437,7 +432,7 @@ public abstract class EndpointDiscoverer<E extends ExposableEndpoint<O>, O exten
 			this.enabledByDefault = (Boolean) attributes.get("enableByDefault");
 			this.filter = getFilter(this.bean.getClass());
 			Assert.state(StringUtils.hasText(this.id),
-					"No @Endpoint id attribute specified for "
+					() -> "No @Endpoint id attribute specified for "
 							+ bean.getClass().getName());
 		}
 

@@ -71,6 +71,7 @@ import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.View;
 import org.springframework.web.servlet.ViewResolver;
+import org.springframework.web.servlet.config.annotation.ContentNegotiationConfigurer;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.handler.AbstractHandlerExceptionResolver;
@@ -809,6 +810,18 @@ public class WebMvcAutoConfigurationTests {
 				});
 	}
 
+	@Test
+	public void customConfigurerAppliedAfterAutoConfig() {
+		this.contextRunner.withUserConfiguration(CustomConfigurer.class)
+				.run((context) -> {
+					ContentNegotiationManager manager = context
+							.getBean(ContentNegotiationManager.class);
+					assertThat(manager.getStrategies()).anyMatch((
+							strategy) -> WebMvcAutoConfiguration.OptionalPathExtensionContentNegotiationStrategy.class
+									.isAssignableFrom(strategy.getClass()));
+				});
+	}
+
 	private void assertCacheControl(AssertableWebApplicationContext context) {
 		Map<String, Object> handlerMap = getHandlerMap(
 				context.getBean("resourceHandlerMapping", HandlerMapping.class));
@@ -1082,6 +1095,16 @@ public class WebMvcAutoConfigurationTests {
 		public HttpMessageConverter<?> customHttpMessageConverter(
 				ConversionService conversionService) {
 			return mock(HttpMessageConverter.class);
+		}
+
+	}
+
+	@Configuration
+	static class CustomConfigurer implements WebMvcConfigurer {
+
+		@Override
+		public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
+			configurer.favorPathExtension(true);
 		}
 
 	}

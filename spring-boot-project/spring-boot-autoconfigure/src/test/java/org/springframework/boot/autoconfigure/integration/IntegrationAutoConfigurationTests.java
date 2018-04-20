@@ -22,6 +22,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.integration.IntegrationAutoConfiguration.IntegrationComponentScanAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
@@ -35,7 +36,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.integration.annotation.IntegrationComponentScan;
 import org.springframework.integration.annotation.MessagingGateway;
+import org.springframework.integration.core.MessageSource;
+import org.springframework.integration.endpoint.MessageProcessorMessageSource;
 import org.springframework.integration.gateway.RequestReplyExchanger;
+import org.springframework.integration.handler.MessageProcessor;
 import org.springframework.integration.support.channel.HeaderChannelRegistry;
 import org.springframework.integration.support.management.IntegrationManagementConfigurer;
 import org.springframework.jdbc.BadSqlGrammarException;
@@ -83,13 +87,10 @@ public class IntegrationAutoConfigurationTests {
 
 	@Test
 	public void parentContext() {
-		this.contextRunner.run((context) -> {
-			this.contextRunner.withParent(context)
-					.withPropertyValues("spring.jmx.default_domain=org.foo")
-					.run((child) -> {
-						assertThat(child).hasSingleBean(HeaderChannelRegistry.class);
-					});
-		});
+		this.contextRunner.run((context) -> this.contextRunner.withParent(context)
+				.withPropertyValues("spring.jmx.default_domain=org.foo")
+				.run((child) -> assertThat(child)
+						.hasSingleBean(HeaderChannelRegistry.class)));
 	}
 
 	@Test
@@ -199,6 +200,16 @@ public class IntegrationAutoConfigurationTests {
 				});
 	}
 
+	@Test
+	public void integrationEnablesDefaultCounts() {
+		this.contextRunner.withUserConfiguration(MessageSourceConfiguration.class)
+				.run((context) -> {
+					assertThat(context).hasBean("myMessageSource");
+					assertThat(new DirectFieldAccessor(context.getBean("myMessageSource"))
+							.getPropertyValue("countsEnabled")).isEqualTo(true);
+				});
+	}
+
 	@Configuration
 	static class CustomMBeanExporter {
 
@@ -218,6 +229,16 @@ public class IntegrationAutoConfigurationTests {
 
 	@MessagingGateway
 	public interface TestGateway extends RequestReplyExchanger {
+
+	}
+
+	@Configuration
+	static class MessageSourceConfiguration {
+
+		@Bean
+		public MessageSource<?> myMessageSource() {
+			return new MessageProcessorMessageSource(mock(MessageProcessor.class));
+		}
 
 	}
 

@@ -19,7 +19,6 @@ package org.springframework.boot.autoconfigure.jersey;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map.Entry;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.DispatcherType;
@@ -35,7 +34,6 @@ import com.fasterxml.jackson.databind.cfg.MapperConfig;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.glassfish.jersey.CommonProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -182,9 +180,7 @@ public class JerseyAutoConfiguration implements ServletContextAware {
 	}
 
 	private void addInitParameters(DynamicRegistrationBean<?> registration) {
-		for (Entry<String, String> entry : this.jersey.getInit().entrySet()) {
-			registration.addInitParameter(entry.getKey(), entry.getValue());
-		}
+		this.jersey.getInit().forEach(registration::addInitParameter);
 	}
 
 	private static String findApplicationPath(ApplicationPath annotation) {
@@ -213,9 +209,6 @@ public class JerseyAutoConfiguration implements ServletContextAware {
 						+ servletRegistrationName + "'");
 			}
 			registration.setInitParameters(this.jersey.getInit());
-			registration.setInitParameter(
-					CommonProperties.METAINF_SERVICES_LOOKUP_DISABLE,
-					Boolean.TRUE.toString());
 		}
 	}
 

@@ -23,6 +23,7 @@ import org.junit.runner.RunWith;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.autoconfigure.security.reactive.EndpointRequest;
+import org.springframework.boot.actuate.web.mappings.MappingsEndpoint;
 import org.springframework.boot.autoconfigure.security.reactive.PathRequest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
@@ -79,9 +80,25 @@ public class SampleSecureWebFluxCustomSecurityTests {
 	}
 
 	@Test
+	public void actuatorExcludedFromEndpointRequestMatcher() {
+		this.webClient.get().uri("/actuator/mappings").accept(MediaType.APPLICATION_JSON)
+				.header("Authorization", "basic " + getBasicAuth()).exchange()
+				.expectStatus().isOk();
+	}
+
+	@Test
 	public void staticResourceShouldBeAccessible() {
 		this.webClient.get().uri("/css/bootstrap.min.css")
 				.accept(MediaType.APPLICATION_JSON).exchange().expectStatus().isOk();
+	}
+
+	@Test
+	public void actuatorLinksIsSecure() {
+		this.webClient.get().uri("/actuator").accept(MediaType.APPLICATION_JSON)
+				.exchange().expectStatus().isUnauthorized();
+		this.webClient.get().uri("/actuator").accept(MediaType.APPLICATION_JSON)
+				.header("Authorization", "basic " + getBasicAuthForAdmin()).exchange()
+				.expectStatus().isOk();
 	}
 
 	@Configuration
@@ -99,13 +116,14 @@ public class SampleSecureWebFluxCustomSecurityTests {
 
 		@Bean
 		public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
-			http.authorizeExchange().matchers(EndpointRequest.to("health", "info"))
-					.permitAll().matchers(EndpointRequest.toAnyEndpoint())
+			return http.authorizeExchange().matchers(EndpointRequest.to("health", "info"))
+					.permitAll()
+					.matchers(EndpointRequest.toAnyEndpoint()
+							.excluding(MappingsEndpoint.class))
 					.hasRole("ACTUATOR")
 					.matchers(PathRequest.toStaticResources().atCommonLocations())
 					.permitAll().pathMatchers("/login").permitAll().anyExchange()
-					.authenticated().and().httpBasic();
-			return http.build();
+					.authenticated().and().httpBasic().and().build();
 		}
 
 	}

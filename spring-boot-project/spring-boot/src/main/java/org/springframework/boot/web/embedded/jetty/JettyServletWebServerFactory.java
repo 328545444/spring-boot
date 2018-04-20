@@ -23,14 +23,11 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.server.AbstractConnector;
@@ -249,11 +246,8 @@ public class JettyServletWebServerFactory extends AbstractServletWebServerFactor
 	}
 
 	private void addLocaleMappings(WebAppContext context) {
-		for (Map.Entry<Locale, Charset> entry : getLocaleCharsetMappings().entrySet()) {
-			Locale locale = entry.getKey();
-			Charset charset = entry.getValue();
-			context.addLocaleEncoding(locale.toString(), charset.toString());
-		}
+		getLocaleCharsetMappings().forEach((locale, charset) -> context
+				.addLocaleEncoding(locale.toString(), charset.toString()));
 	}
 
 	private File getTempDirectory() {
@@ -287,7 +281,7 @@ public class JettyServletWebServerFactory extends AbstractServletWebServerFactor
 
 	private Resource createResource(URL url) throws IOException {
 		if ("file".equals(url.getProtocol())) {
-			File file = new File(url.getFile());
+			File file = new File(getDecodedFile(url));
 			if (file.isFile()) {
 				return Resource.newResource("jar:" + url + "!/META-INF/resources");
 			}

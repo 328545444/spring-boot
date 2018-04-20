@@ -51,6 +51,7 @@
 					<version>${kotlin.version}</version>
 					<configuration>
 						<jvmTarget>${java.version}</jvmTarget>
+						<javaParameters>true</javaParameters>
 					</configuration>
 					<executions>
 						<execution>
@@ -270,10 +271,13 @@
 						<configuration>
 							<updatePomFile>true</updatePomFile>
 							<pomElements>
-								<pluginManagement>keep</pluginManagement>
 								<parent>expand</parent>
-								<dependencyManagement>keep</dependencyManagement>
+								<name>keep</name>
+								<description>keep</description>
+								<url>expand</url>
 								<properties>keep</properties>
+								<pluginManagement>keep</pluginManagement>
+								<dependencyManagement>keep</dependencyManagement>
 								<build>keep</build>
 							</pomElements>
 						</configuration>

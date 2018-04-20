@@ -155,14 +155,15 @@ in the '`Spring Boot features`' section for more information.
 Not all Spring applications have to be web applications (or web services). If you want to
 execute some code in a `main` method but also bootstrap a Spring application to set up
 the infrastructure to use, you can use the `SpringApplication` features of Spring
-Boot. A `SpringApplication` changes its `ApplicationContext` class, depending on whether it
-thinks it needs a web application or not. The first thing you can do to help it is to
-leave the servlet API dependencies off the classpath. If you cannot do that (for example, you
-run two applications from the same code base) then you can explicitly call
-`setWebEnvironment(false)` on your `SpringApplication` instance or set the
-`applicationContextClass` property (through the Java API or with external properties).
-Application code that you want to run as your business logic can be implemented as a
-`CommandLineRunner` and dropped into the context as a `@Bean` definition.
+Boot. A `SpringApplication` changes its `ApplicationContext` class, depending on whether
+it thinks it needs a web application or not. The first thing you can do to help it is to
+leave server-related dependencies (e.g. servlet API) off the classpath. If you cannot do
+that (for example, you run two applications from the same code base) then you can
+explicitly call `setWebApplicationType(WebApplicationType.NONE)` on your
+`SpringApplication` instance or set the `applicationContextClass` property (through the
+Java API or with external properties). Application code that you want to run as your
+business logic can be implemented as a `CommandLineRunner` and dropped into the context as
+a `@Bean` definition.
 
 
 
@@ -515,9 +516,6 @@ includes Tomcat by including `spring-boot-starter-tomcat`, but you can use
 `spring-boot-starter-reactor-netty`, but you can use `spring-boot-starter-tomcat`,
 `spring-boot-starter-jetty`, or `spring-boot-starter-undertow` instead.
 
-NOTE: Many starters support only Spring MVC, so they transitively bring
-`spring-boot-starter-web` into your application classpath.
-
 If you need to use a different HTTP server, you need to exclude the default dependencies
 and include the one you need. Spring Boot provides separate starters for
 HTTP servers to help make this process as easy as possible.
@@ -565,6 +563,19 @@ WebFlux:
 NOTE: `spring-boot-starter-reactor-netty` is required to use the `WebClient` class, so
 you may need to keep a dependency on Netty even when you need to include a different HTTP
 server.
+
+
+
+[[howto-disable-web-server]]
+=== Disabling the Web Server
+If your classpath contains the necessary bits to start a web server, Spring Boot will
+automatically start it. To disable this behaviour configure the `WebApplicationType` in
+your `application.properties`, as shown in the following example:
+
+[source,properties,indent=0]
+----
+	spring.main.web-application-type=none
+----
 
 
 
@@ -1929,10 +1940,9 @@ as shown in the following example:
 
 [[howto-use-traditional-persistence-xml]]
 === Use a Traditional `persistence.xml` File
-Spring does not require the use of XML to configure the JPA provider, and Spring Boot
-assumes you want to take advantage of that feature. If you prefer to use
-`persistence.xml`, you need to define your own `@Bean` of type
-`LocalEntityManagerFactoryBean` (with an ID of '`entityManagerFactory`') and set the
+Spring Boot will not search for or use a `META-INF/persistence.xml` by default. If you
+prefer to use a traditional `persistence.xml`, you need to define your own `@Bean` of
+type `LocalEntityManagerFactoryBean` (with an ID of '`entityManagerFactory`') and set the
 persistence unit name there.
 
 See
@@ -2335,8 +2345,8 @@ If you define a `@Configuration` with a `WebSecurityConfigurerAdapter` in your a
 it switches off the default webapp security settings in Spring Boot.
 
 
-[[howto-change-the-authenticationmanager-and-add-user-accounts]]
-=== Change the AuthenticationManager and Add User Accounts
+[[howto-change-the-user-details-service-and-add-user-accounts]]
+=== Change the UserDetailsService and Add User Accounts
 If you provide a `@Bean` of type `AuthenticationManager`, `AuthenticationProvider`,
 or `UserDetailsService`, the default `@Bean` for `InMemoryUserDetailsManager` is not
 created, so you have the full feature set of Spring Security available (such as
@@ -2841,6 +2851,10 @@ This section answers common questions about traditional deployment.
 [[howto-create-a-deployable-war-file]]
 === Create a Deployable War File
 
+WARNING: Because Spring WebFlux does not strictly depend on the Servlet API and
+applications are deployed by default on an embedded Reactor Netty server,
+War deployment is not supported for WebFlux applications.
+
 The first step in producing a deployable war file is to provide a
 `SpringBootServletInitializer` subclass and override its `configure` method. Doing so
 makes use of Spring Framework's Servlet 3.0 support and lets you configure your
@@ -2929,14 +2943,6 @@ TIP: Take a look at Spring Boot's sample applications for a
 {github-code}/spring-boot-samples/spring-boot-sample-traditional/pom.xml[Maven-based
 example] of the previously described configuration.
 
-
-
-[[howto-create-a-deployable-war-file-for-older-containers]]
-=== Create a Deployable War File for Older Servlet Containers
-Older Servlet containers do not have support for the `ServletContextInitializer` bootstrap
-process used in Servlet 3.0. You can still use Spring and Spring Boot in these containers,
-but you are going to need to add a `web.xml` to your application and configure it to load
-an `ApplicationContext` via a `DispatcherServlet`.
 
 
 
@@ -3102,70 +3108,6 @@ rather than the version that was pre-installed with the server. You can do so by
 		</wls:container-descriptor>
 	</wls:weblogic-web-app>
 ----
-
-
-
-[[howto-servlet-2-5]]
-===  Deploying a WAR in an Old (Servlet 2.5) Container
-Spring Boot uses Servlet 3.0 APIs to initialize the `ServletContext` (register `Servlets`
-and so on), so you cannot use the same application in a Servlet 2.5 container.
-It *is*, however, possible to run a Spring Boot application on an older container with some
-special tools. If you include `org.springframework.boot:spring-boot-legacy` as a
-dependency (https://github.com/scratches/spring-boot-legacy[maintained separately] to the
-core of Spring Boot and currently available at 1.1.0.RELEASE), all you need to do
-is create a `web.xml` and declare a context listener to create the application context and
-your filters and servlets. The context listener is a special purpose one for Spring Boot,
-but the rest of it is normal for a Spring application in Servlet 2.5. The following Maven
-example shows how to set up a Spring Boot project to run in a Servlet 2.5 container:
-
-[source,xml,indent=0]
-----
-	<?xml version="1.0" encoding="UTF-8"?>
-	<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
-		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
-
-		<context-param>
-			<param-name>contextConfigLocation</param-name>
-			<param-value>demo.Application</param-value>
-		</context-param>
-
-		<listener>
-			<listener-class>org.springframework.boot.legacy.context.web.SpringBootContextLoaderListener</listener-class>
-		</listener>
-
-		<filter>
-			<filter-name>metricsFilter</filter-name>
-			<filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
-		</filter>
-
-		<filter-mapping>
-			<filter-name>metricsFilter</filter-name>
-			<url-pattern>/*</url-pattern>
-		</filter-mapping>
-
-		<servlet>
-			<servlet-name>appServlet</servlet-name>
-			<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
-			<init-param>
-				<param-name>contextAttribute</param-name>
-				<param-value>org.springframework.web.context.WebApplicationContext.ROOT</param-value>
-			</init-param>
-			<load-on-startup>1</load-on-startup>
-		</servlet>
-
-		<servlet-mapping>
-			<servlet-name>appServlet</servlet-name>
-			<url-pattern>/</url-pattern>
-		</servlet-mapping>
-
-	</web-app>
-----
-
-In the preceding example, we use a single application context (the one created by the
-context listener) and attach it to the `DispatcherServlet` by using an `init` parameter.
-This is normal in a Spring Boot application (you normally only have one application
-context).
 
 
 

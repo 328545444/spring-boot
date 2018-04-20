@@ -34,19 +34,16 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-import org.assertj.core.api.Assumptions;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
 import reactor.core.publisher.Mono;
 import reactor.ipc.netty.NettyPipeline;
 import reactor.ipc.netty.http.client.HttpClientOptions;
 import reactor.test.StepVerifier;
 
 import org.springframework.boot.testsupport.rule.OutputCapture;
-import org.springframework.boot.web.embedded.undertow.UndertowReactiveWebServerFactory;
 import org.springframework.boot.web.server.Compression;
 import org.springframework.boot.web.server.Ssl;
 import org.springframework.boot.web.server.WebServer;
@@ -74,9 +71,6 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
-
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Rule
 	public OutputCapture output = new OutputCapture();
@@ -141,11 +135,9 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 	}
 
 	protected ReactorClientHttpConnector buildTrustAllSslConnector() {
-		return new ReactorClientHttpConnector(
-				(options) -> options.sslSupport((sslContextBuilder) -> {
-					sslContextBuilder.sslProvider(SslProvider.JDK)
-							.trustManager(InsecureTrustManagerFactory.INSTANCE);
-				}));
+		return new ReactorClientHttpConnector((options) -> options.sslSupport(
+				(sslContextBuilder) -> sslContextBuilder.sslProvider(SslProvider.JDK)
+						.trustManager(InsecureTrustManagerFactory.INSTANCE)));
 	}
 
 	@Test
@@ -160,8 +152,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 	}
 
 	@Test
-	public void sslWantsClientAuthenticationSucceedsWithoutClientCertificate()
-			throws Exception {
+	public void sslWantsClientAuthenticationSucceedsWithoutClientCertificate() {
 		Ssl ssl = new Ssl();
 		ssl.setClientAuth(Ssl.ClientAuth.WANT);
 		ssl.setKeyStore("classpath:test.jks");
@@ -178,12 +169,10 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 		KeyManagerFactory clientKeyManagerFactory = KeyManagerFactory
 				.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 		clientKeyManagerFactory.init(clientKeyStore, "password".toCharArray());
-		return new ReactorClientHttpConnector(
-				(options) -> options.sslSupport((sslContextBuilder) -> {
-					sslContextBuilder.sslProvider(SslProvider.JDK)
-							.trustManager(InsecureTrustManagerFactory.INSTANCE)
-							.keyManager(clientKeyManagerFactory);
-				}));
+		return new ReactorClientHttpConnector((options) -> options.sslSupport(
+				(sslContextBuilder) -> sslContextBuilder.sslProvider(SslProvider.JDK)
+						.trustManager(InsecureTrustManagerFactory.INSTANCE)
+						.keyManager(clientKeyManagerFactory)));
 	}
 
 	protected void testClientAuthSuccess(Ssl sslConfiguration,
@@ -213,11 +202,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 	}
 
 	@Test
-	public void sslNeedsClientAuthenticationFailsWithoutClientCertificate()
-			throws Exception {
-		// Ignored for Undertow, see https://github.com/reactor/reactor-netty/issues/257
-		Assumptions.assumeThat(getFactory())
-				.isNotInstanceOf(UndertowReactiveWebServerFactory.class);
+	public void sslNeedsClientAuthenticationFailsWithoutClientCertificate() {
 		Ssl ssl = new Ssl();
 		ssl.setClientAuth(Ssl.ClientAuth.NEED);
 		ssl.setKeyStore("classpath:test.jks");
@@ -286,7 +271,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 	@Test
 	public void noCompressionForMimeType() {
 		Compression compression = new Compression();
-		compression.setMimeTypes(new String[] {"application/json"});
+		compression.setMimeTypes(new String[] { "application/json" });
 		WebClient client = prepareCompressionTest(compression);
 		ResponseEntity<Void> response = client.get().exchange()
 				.flatMap((res) -> res.toEntity(Void.class)).block();
@@ -297,7 +282,7 @@ public abstract class AbstractReactiveWebServerFactoryTests {
 	public void noCompressionForUserAgent() {
 		Compression compression = new Compression();
 		compression.setEnabled(true);
-		compression.setExcludedUserAgents(new String[] {"testUserAgent"});
+		compression.setExcludedUserAgents(new String[] { "testUserAgent" });
 		WebClient client = prepareCompressionTest(compression);
 		ResponseEntity<Void> response = client.get().header("User-Agent", "testUserAgent")
 				.exchange().flatMap((res) -> res.toEntity(Void.class)).block();
