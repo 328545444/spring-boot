@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,24 @@
 
 package org.springframework.boot.actuate.autoconfigure.health;
 
-import java.util.Collections;
-import java.util.Map;
-
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.autoconfigure.endpoint.condition.ConditionalOnEnabledEndpoint;
-import org.springframework.boot.actuate.health.CompositeReactiveHealthIndicatorFactory;
+import org.springframework.boot.actuate.health.CompositeReactiveHealthIndicator;
 import org.springframework.boot.actuate.health.HealthAggregator;
 import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.boot.actuate.health.HealthEndpointWebExtension;
-import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.health.HealthStatusHttpMapper;
 import org.springframework.boot.actuate.health.HealthWebEndpointResponseMapper;
 import org.springframework.boot.actuate.health.OrderedHealthAggregator;
 import org.springframework.boot.actuate.health.ReactiveHealthEndpointWebExtension;
 import org.springframework.boot.actuate.health.ReactiveHealthIndicator;
+import org.springframework.boot.actuate.health.ReactiveHealthIndicatorRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -71,24 +68,21 @@ class HealthEndpointWebExtensionConfiguration {
 
 	@Configuration
 	@ConditionalOnWebApplication(type = Type.REACTIVE)
+	@ConditionalOnSingleCandidate(ReactiveHealthIndicatorRegistry.class)
+	@ConditionalOnEnabledEndpoint(endpoint = HealthEndpoint.class)
 	static class ReactiveWebHealthConfiguration {
 
 		private final ReactiveHealthIndicator reactiveHealthIndicator;
 
 		ReactiveWebHealthConfiguration(ObjectProvider<HealthAggregator> healthAggregator,
-				ObjectProvider<Map<String, ReactiveHealthIndicator>> reactiveHealthIndicators,
-				ObjectProvider<Map<String, HealthIndicator>> healthIndicators) {
-			this.reactiveHealthIndicator = new CompositeReactiveHealthIndicatorFactory()
-					.createReactiveHealthIndicator(
-							healthAggregator.getIfAvailable(OrderedHealthAggregator::new),
-							reactiveHealthIndicators
-									.getIfAvailable(Collections::emptyMap),
-							healthIndicators.getIfAvailable(Collections::emptyMap));
+				ReactiveHealthIndicatorRegistry registry) {
+			this.reactiveHealthIndicator = new CompositeReactiveHealthIndicator(
+					healthAggregator.getIfAvailable(OrderedHealthAggregator::new),
+					registry);
 		}
 
 		@Bean
 		@ConditionalOnMissingBean
-		@ConditionalOnEnabledEndpoint
 		@ConditionalOnBean(HealthEndpoint.class)
 		public ReactiveHealthEndpointWebExtension reactiveHealthEndpointWebExtension(
 				HealthWebEndpointResponseMapper responseMapper) {
@@ -100,18 +94,16 @@ class HealthEndpointWebExtensionConfiguration {
 
 	@Configuration
 	@ConditionalOnWebApplication(type = Type.SERVLET)
+	@ConditionalOnEnabledEndpoint(endpoint = HealthEndpoint.class)
 	static class ServletWebHealthConfiguration {
 
 		@Bean
 		@ConditionalOnMissingBean
-		@ConditionalOnEnabledEndpoint
 		@ConditionalOnBean(HealthEndpoint.class)
 		public HealthEndpointWebExtension healthEndpointWebExtension(
-				ApplicationContext applicationContext,
+				HealthEndpoint healthEndpoint,
 				HealthWebEndpointResponseMapper responseMapper) {
-			return new HealthEndpointWebExtension(
-					HealthIndicatorBeansComposite.get(applicationContext),
-					responseMapper);
+			return new HealthEndpointWebExtension(healthEndpoint, responseMapper);
 		}
 
 	}

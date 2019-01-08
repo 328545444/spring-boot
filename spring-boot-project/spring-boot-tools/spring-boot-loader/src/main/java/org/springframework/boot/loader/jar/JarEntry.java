@@ -42,9 +42,9 @@ class JarEntry extends java.util.jar.JarEntry implements FileHeader {
 
 	private long localHeaderOffset;
 
-	JarEntry(JarFile jarFile, CentralDirectoryFileHeader header) {
-		super(header.getName().toString());
-		this.name = header.getName();
+	JarEntry(JarFile jarFile, CentralDirectoryFileHeader header, AsciiBytes nameAlias) {
+		super((nameAlias != null) ? nameAlias.toString() : header.getName().toString());
+		this.name = (nameAlias != null) ? nameAlias : header.getName();
 		this.jarFile = jarFile;
 		this.localHeaderOffset = header.getLocalHeaderOffset();
 		setCompressedSize(header.getCompressedSize());
@@ -77,7 +77,7 @@ class JarEntry extends java.util.jar.JarEntry implements FileHeader {
 	@Override
 	public Attributes getAttributes() throws IOException {
 		Manifest manifest = this.jarFile.getManifest();
-		return (manifest == null ? null : manifest.getAttributes(getName()));
+		return (manifest != null) ? manifest.getAttributes(getName()) : null;
 	}
 
 	@Override

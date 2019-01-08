@@ -18,6 +18,7 @@ package org.springframework.boot.context.properties.bind;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.springframework.boot.context.properties.bind.BinderTests.ExampleEnum;
 import org.springframework.boot.context.properties.bind.BinderTests.JavaBean;
 import org.springframework.boot.context.properties.source.ConfigurationProperty;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
@@ -124,13 +126,34 @@ public class CollectionBinderTests {
 			fail("No exception thrown");
 		}
 		catch (BindException ex) {
-			ex.printStackTrace();
 			Set<ConfigurationProperty> unbound = ((UnboundConfigurationPropertiesException) ex
 					.getCause()).getUnboundProperties();
 			assertThat(unbound).hasSize(1);
 			ConfigurationProperty property = unbound.iterator().next();
 			assertThat(property.getName().toString()).isEqualTo("foo[3]");
 			assertThat(property.getValue()).isEqualTo("3");
+		}
+	}
+
+	@Test
+	public void bindToNonScalarCollectionWhenNonSequentialShouldThrowException() {
+		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
+		source.put("foo[0].value", "1");
+		source.put("foo[1].value", "2");
+		source.put("foo[4].value", "4");
+		this.sources.add(source);
+		try {
+			Bindable<List<JavaBean>> target = Bindable.listOf(JavaBean.class);
+			this.binder.bind("foo", target);
+			fail("No exception thrown");
+		}
+		catch (BindException ex) {
+			Set<ConfigurationProperty> unbound = ((UnboundConfigurationPropertiesException) ex
+					.getCause()).getUnboundProperties();
+			assertThat(unbound).hasSize(1);
+			ConfigurationProperty property = unbound.iterator().next();
+			assertThat(property.getName().toString()).isEqualTo("foo[4].value");
+			assertThat(property.getValue()).isEqualTo("4");
 		}
 	}
 
@@ -364,6 +387,19 @@ public class CollectionBinderTests {
 	}
 
 	@Test
+	public void bindToNestedCollectionWhenEmptyStringShouldReturnEmptyCollection() {
+		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
+		source.put("foo.value", "one");
+		source.put("foo.foos", "");
+		this.sources.add(source);
+		Bindable<BeanWithNestedCollection> target = Bindable
+				.of(BeanWithNestedCollection.class);
+		BeanWithNestedCollection foo = this.binder.bind("foo", target).get();
+		assertThat(foo.getValue()).isEqualTo("one");
+		assertThat(foo.getFoos()).isEmpty();
+	}
+
+	@Test
 	public void bindToCollectionShouldUsePropertyEditor() {
 		// gh-12166
 		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
@@ -401,7 +437,28 @@ public class CollectionBinderTests {
 		this.sources.add(source);
 		Bindable<ClonedArrayBean> target = Bindable.of(ClonedArrayBean.class);
 		ClonedArrayBean bean = this.binder.bind("foo", target).get();
-		assertThat(bean.getBar()).contains("hello");
+		assertThat(bean.getBar()).containsExactly("hello");
+	}
+
+	@Test
+	public void bindToBeanWithExceptionInGetterForExistingValue() {
+		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
+		source.put("foo.values", "a,b,c");
+		this.sources.add(source);
+		BeanWithGetterException result = this.binder
+				.bind("foo", Bindable.of(BeanWithGetterException.class)).get();
+		assertThat(result.getValues()).containsExactly("a", "b", "c");
+	}
+
+	@Test
+	public void bindToBeanWithEnumSetCollection() {
+		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
+		source.put("foo.values[0]", "foo-bar,bar-baz");
+		this.sources.add(source);
+		BeanWithEnumsetCollection result = this.binder
+				.bind("foo", Bindable.of(BeanWithEnumsetCollection.class)).get();
+		assertThat(result.getValues().get(0)).containsExactly(ExampleEnum.FOO_BAR,
+				ExampleEnum.BAR_BAZ);
 	}
 
 	public static class ExampleCollectionBean {
@@ -425,6 +482,7 @@ public class CollectionBinderTests {
 		public void setItemsSet(Set<String> itemsSet) {
 			this.itemsSet = itemsSet;
 		}
+
 	}
 
 	public static class ExampleCustomNoDefaultConstructorBean {
@@ -490,6 +548,7 @@ public class CollectionBinderTests {
 		public void setValue(String value) {
 			this.value = value;
 		}
+
 	}
 
 	public static class ClonedArrayBean {
@@ -502,6 +561,34 @@ public class CollectionBinderTests {
 
 		public void setBar(String[] bar) {
 			this.bar = bar;
+		}
+
+	}
+
+	public static class BeanWithGetterException {
+
+		private List<String> values;
+
+		public void setValues(List<String> values) {
+			this.values = values;
+		}
+
+		public List<String> getValues() {
+			return Collections.unmodifiableList(this.values);
+		}
+
+	}
+
+	public static class BeanWithEnumsetCollection {
+
+		private List<EnumSet<ExampleEnum>> values;
+
+		public void setValues(List<EnumSet<ExampleEnum>> values) {
+			this.values = values;
+		}
+
+		public List<EnumSet<ExampleEnum>> getValues() {
+			return this.values;
 		}
 
 	}

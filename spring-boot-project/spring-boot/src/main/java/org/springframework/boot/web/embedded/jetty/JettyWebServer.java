@@ -16,6 +16,7 @@
 
 package org.springframework.boot.web.embedded.jetty;
 
+import java.io.IOException;
 import java.net.BindException;
 import java.util.Arrays;
 import java.util.List;
@@ -107,7 +108,7 @@ public class JettyWebServer implements WebServer {
 				this.server.start();
 				this.server.setStopAtShutdown(false);
 			}
-			catch (Exception ex) {
+			catch (Throwable ex) {
 				// Ensure process isn't left running
 				stopSilently();
 				throw new WebServerException("Unable to start embedded Jetty web server",
@@ -145,8 +146,9 @@ public class JettyWebServer implements WebServer {
 					try {
 						connector.start();
 					}
-					catch (BindException ex) {
-						if (connector instanceof NetworkConnector) {
+					catch (IOException ex) {
+						if (connector instanceof NetworkConnector
+								&& findBindException(ex) != null) {
 							throw new PortInUseException(
 									((NetworkConnector) connector).getPort());
 						}
@@ -154,9 +156,8 @@ public class JettyWebServer implements WebServer {
 					}
 				}
 				this.started = true;
-				JettyWebServer.logger
-						.info("Jetty started on port(s) " + getActualPortsDescription()
-								+ " with context path '" + getContextPath() + "'");
+				logger.info("Jetty started on port(s) " + getActualPortsDescription()
+						+ " with context path '" + getContextPath() + "'");
 			}
 			catch (WebServerException ex) {
 				stopSilently();
@@ -169,11 +170,23 @@ public class JettyWebServer implements WebServer {
 		}
 	}
 
+	private BindException findBindException(Throwable ex) {
+		if (ex == null) {
+			return null;
+		}
+		if (ex instanceof BindException) {
+			return (BindException) ex;
+		}
+		return findBindException(ex.getCause());
+	}
+
 	private String getActualPortsDescription() {
 		StringBuilder ports = new StringBuilder();
 		for (Connector connector : this.server.getConnectors()) {
-			ports.append(ports.length() == 0 ? "" : ", ");
-			ports.append(getLocalPort(connector) + getProtocols(connector));
+			if (ports.length() != 0) {
+				ports.append(", ");
+			}
+			ports.append(getLocalPort(connector)).append(getProtocols(connector));
 		}
 		return ports.toString();
 	}
@@ -186,8 +199,7 @@ public class JettyWebServer implements WebServer {
 					connector);
 		}
 		catch (Exception ex) {
-			JettyWebServer.logger
-					.info("could not determine port ( " + ex.getMessage() + ")");
+			logger.info("could not determine port ( " + ex.getMessage() + ")");
 			return 0;
 		}
 	}

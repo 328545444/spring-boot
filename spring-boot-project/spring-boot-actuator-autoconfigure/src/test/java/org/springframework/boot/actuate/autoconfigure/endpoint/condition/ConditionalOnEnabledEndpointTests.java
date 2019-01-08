@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2018 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -102,6 +102,60 @@ public class ConditionalOnEnabledEndpointTests {
 						.doesNotHaveBean("fooExt"));
 	}
 
+	@Test
+	public void outcomeWithReferenceWhenNoPropertiesShouldMatch() {
+		this.contextRunner
+				.withUserConfiguration(FooEndpointEnabledByDefaultTrue.class,
+						ComponentEnabledIfEndpointIsEnabledConfiguration.class)
+				.run((context) -> assertThat(context).hasBean("fooComponent"));
+	}
+
+	@Test
+	public void outcomeWithReferenceWhenEndpointEnabledPropertyIsTrueShouldMatch() {
+		this.contextRunner.withPropertyValues("management.endpoint.foo.enabled=true")
+				.withUserConfiguration(FooEndpointEnabledByDefaultTrue.class,
+						ComponentEnabledIfEndpointIsEnabledConfiguration.class)
+				.run((context) -> assertThat(context).hasBean("fooComponent"));
+	}
+
+	@Test
+	public void outcomeWithReferenceWhenEndpointEnabledPropertyIsFalseShouldNotMatch() {
+		this.contextRunner.withPropertyValues("management.endpoint.foo.enabled=false")
+				.withUserConfiguration(FooEndpointEnabledByDefaultTrue.class,
+						ComponentEnabledIfEndpointIsEnabledConfiguration.class)
+				.run((context) -> assertThat(context).doesNotHaveBean("fooComponent"));
+	}
+
+	@Test
+	public void outcomeWithNoReferenceShouldFail() {
+		this.contextRunner
+				.withUserConfiguration(
+						ComponentWithNoEndpointReferenceConfiguration.class)
+				.run((context) -> {
+					assertThat(context).hasFailed();
+					assertThat(context.getStartupFailure().getCause().getMessage())
+							.contains(
+									"No endpoint is specified and the return type of the @Bean method "
+											+ "is neither an @Endpoint, nor an @EndpointExtension");
+				});
+	}
+
+	@Test
+	public void outcomeWhenEndpointEnabledPropertyIsTrueAndMixedCaseShouldMatch() {
+		this.contextRunner.withPropertyValues("management.endpoint.foo-bar.enabled=true")
+				.withUserConfiguration(
+						FooBarEndpointEnabledByDefaultFalseConfiguration.class)
+				.run((context) -> assertThat(context).hasBean("fooBar"));
+	}
+
+	@Test
+	public void outcomeWhenEndpointEnabledPropertyIsFalseOnClassShouldNotMatch() {
+		this.contextRunner.withPropertyValues("management.endpoint.foo.enabled=false")
+				.withUserConfiguration(
+						FooEndpointEnabledByDefaultTrueOnConfigurationConfiguration.class)
+				.run((context) -> assertThat(context).doesNotHaveBean("foo"));
+	}
+
 	@Endpoint(id = "foo", enableByDefault = true)
 	static class FooEndpointEnabledByDefaultTrue {
 
@@ -109,6 +163,11 @@ public class ConditionalOnEnabledEndpointTests {
 
 	@Endpoint(id = "foo", enableByDefault = false)
 	static class FooEndpointEnabledByDefaultFalse {
+
+	}
+
+	@Endpoint(id = "fooBar", enableByDefault = false)
+	static class FooBarEndpointEnabledByDefaultFalse {
 
 	}
 
@@ -143,12 +202,34 @@ public class ConditionalOnEnabledEndpointTests {
 	}
 
 	@Configuration
+	@ConditionalOnEnabledEndpoint(endpoint = FooEndpointEnabledByDefaultTrue.class)
+	static class FooEndpointEnabledByDefaultTrueOnConfigurationConfiguration {
+
+		@Bean
+		public FooEndpointEnabledByDefaultTrue foo() {
+			return new FooEndpointEnabledByDefaultTrue();
+		}
+
+	}
+
+	@Configuration
 	static class FooEndpointEnabledByDefaultFalseConfiguration {
 
 		@Bean
 		@ConditionalOnEnabledEndpoint
 		public FooEndpointEnabledByDefaultFalse foo() {
 			return new FooEndpointEnabledByDefaultFalse();
+		}
+
+	}
+
+	@Configuration
+	static class FooBarEndpointEnabledByDefaultFalseConfiguration {
+
+		@Bean
+		@ConditionalOnEnabledEndpoint
+		public FooBarEndpointEnabledByDefaultFalse fooBar() {
+			return new FooBarEndpointEnabledByDefaultFalse();
 		}
 
 	}
@@ -183,6 +264,28 @@ public class ConditionalOnEnabledEndpointTests {
 		@ConditionalOnEnabledEndpoint
 		public FooEndpointExtensionEnabledByDefaultFalse fooExt() {
 			return new FooEndpointExtensionEnabledByDefaultFalse();
+		}
+
+	}
+
+	@Configuration
+	static class ComponentEnabledIfEndpointIsEnabledConfiguration {
+
+		@Bean
+		@ConditionalOnEnabledEndpoint(endpoint = FooEndpointEnabledByDefaultTrue.class)
+		public String fooComponent() {
+			return "foo";
+		}
+
+	}
+
+	@Configuration
+	static class ComponentWithNoEndpointReferenceConfiguration {
+
+		@Bean
+		@ConditionalOnEnabledEndpoint
+		public String fooComponent() {
+			return "foo";
 		}
 
 	}

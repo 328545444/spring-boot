@@ -90,8 +90,11 @@ public class AnnotationsPropertySource extends EnumerablePropertySource<Class<?>
 		if (annotations != null) {
 			for (Annotation annotation : annotations) {
 				if (!AnnotationUtils.isInJavaLangAnnotationPackage(annotation)) {
-					mergedAnnotations
-							.add(findMergedAnnotation(root, annotation.annotationType()));
+					Annotation mergedAnnotation = findMergedAnnotation(root,
+							annotation.annotationType());
+					if (mergedAnnotation != null) {
+						mergedAnnotations.add(mergedAnnotation);
+					}
 				}
 			}
 		}
@@ -105,7 +108,7 @@ public class AnnotationsPropertySource extends EnumerablePropertySource<Class<?>
 		}
 		Annotation mergedAnnotation = AnnotatedElementUtils.getMergedAnnotation(source,
 				annotationType);
-		return mergedAnnotation != null ? mergedAnnotation
+		return (mergedAnnotation != null) ? mergedAnnotation
 				: findMergedAnnotation(source.getSuperclass(), annotationType);
 	}
 
@@ -117,7 +120,6 @@ public class AnnotationsPropertySource extends EnumerablePropertySource<Class<?>
 		if (skip == SkipPropertyMapping.YES) {
 			return;
 		}
-		String name = getName(typeMapping, attributeMapping, attribute);
 		ReflectionUtils.makeAccessible(attribute);
 		Object value = ReflectionUtils.invokeMethod(attribute, annotation);
 		if (skip == SkipPropertyMapping.ON_DEFAULT_VALUE) {
@@ -127,6 +129,7 @@ public class AnnotationsPropertySource extends EnumerablePropertySource<Class<?>
 				return;
 			}
 		}
+		String name = getName(typeMapping, attributeMapping, attribute);
 		putProperties(name, value, properties);
 	}
 
@@ -143,8 +146,8 @@ public class AnnotationsPropertySource extends EnumerablePropertySource<Class<?>
 
 	private String getName(PropertyMapping typeMapping, PropertyMapping attributeMapping,
 			Method attribute) {
-		String prefix = (typeMapping == null ? "" : typeMapping.value());
-		String name = (attributeMapping == null ? "" : attributeMapping.value());
+		String prefix = (typeMapping != null) ? typeMapping.value() : "";
+		String name = (attributeMapping != null) ? attributeMapping.value() : "";
 		if (!StringUtils.hasText(name)) {
 			name = toKebabCase(attribute.getName());
 		}
@@ -164,7 +167,7 @@ public class AnnotationsPropertySource extends EnumerablePropertySource<Class<?>
 
 	private String dotAppend(String prefix, String postfix) {
 		if (StringUtils.hasText(prefix)) {
-			return (prefix.endsWith(".") ? prefix + postfix : prefix + "." + postfix);
+			return prefix.endsWith(".") ? prefix + postfix : prefix + "." + postfix;
 		}
 		return postfix;
 	}
@@ -202,11 +205,6 @@ public class AnnotationsPropertySource extends EnumerablePropertySource<Class<?>
 	}
 
 	@Override
-	public int hashCode() {
-		return this.properties.hashCode();
-	}
-
-	@Override
 	public boolean equals(Object obj) {
 		if (obj == this) {
 			return true;
@@ -215,6 +213,11 @@ public class AnnotationsPropertySource extends EnumerablePropertySource<Class<?>
 			return false;
 		}
 		return this.properties.equals(((AnnotationsPropertySource) obj).properties);
+	}
+
+	@Override
+	public int hashCode() {
+		return this.properties.hashCode();
 	}
 
 }

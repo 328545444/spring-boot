@@ -16,7 +16,6 @@
 
 package sample.parent;
 
-import java.io.File;
 import java.util.function.Consumer;
 
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -33,16 +32,27 @@ import org.springframework.integration.file.FileReadingMessageSource;
 import org.springframework.integration.file.FileWritingMessageHandler;
 
 @SpringBootApplication
-@EnableConfigurationProperties(ServiceProperties.class)
 public class SampleParentContextApplication {
 
+	public static void main(String[] args) throws Exception {
+		new SpringApplicationBuilder(Parent.class)
+				.child(SampleParentContextApplication.class).run(args);
+	}
+
 	@EnableAutoConfiguration
+	@EnableConfigurationProperties(ServiceProperties.class)
 	protected static class Parent {
+
+		private final ServiceProperties serviceProperties;
+
+		public Parent(ServiceProperties serviceProperties) {
+			this.serviceProperties = serviceProperties;
+		}
 
 		@Bean
 		public FileReadingMessageSource fileReader() {
 			FileReadingMessageSource reader = new FileReadingMessageSource();
-			reader.setDirectory(new File("target/input"));
+			reader.setDirectory(this.serviceProperties.getInputDir());
 			return reader;
 		}
 
@@ -59,7 +69,7 @@ public class SampleParentContextApplication {
 		@Bean
 		public FileWritingMessageHandler fileWriter() {
 			FileWritingMessageHandler writer = new FileWritingMessageHandler(
-					new File("target/output"));
+					this.serviceProperties.getOutputDir());
 			writer.setExpectReply(false);
 			return writer;
 		}
@@ -81,11 +91,6 @@ public class SampleParentContextApplication {
 
 		}
 
-	}
-
-	public static void main(String[] args) {
-		new SpringApplicationBuilder(Parent.class)
-				.child(SampleParentContextApplication.class).run(args);
 	}
 
 }

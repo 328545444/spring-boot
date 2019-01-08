@@ -189,6 +189,18 @@ public class WebMvcMetricsFilterTests {
 	}
 
 	@Test
+	public void anonymousError() {
+		try {
+			this.mvc.perform(get("/api/c1/anonymousError/10"));
+		}
+		catch (Throwable ignore) {
+		}
+		assertThat(this.registry.get("http.server.requests")
+				.tag("uri", "/api/c1/anonymousError/{id}").timer().getId()
+				.getTag("exception")).endsWith("$1");
+	}
+
+	@Test
 	public void asyncCallableRequest() throws Exception {
 		AtomicReference<MvcResult> result = new AtomicReference<>();
 		Thread backgroundRequest = new Thread(() -> {
@@ -207,39 +219,24 @@ public class WebMvcMetricsFilterTests {
 		// once the mapping completes, we can gather information about status, etc.
 		this.callableBarrier.await();
 		MockClock.clock(this.registry).add(Duration.ofSeconds(2));
-		// while the mapping is running, it contributes to the activeTasks count
-		assertThat(this.registry.get("my.long.request").tags("region", "test")
-				.longTaskTimer().activeTasks()).isEqualTo(1);
 		this.callableBarrier.await();
 		backgroundRequest.join();
 		this.mvc.perform(asyncDispatch(result.get())).andExpect(status().isOk());
 		assertThat(this.registry.get("http.server.requests").tags("status", "200")
 				.tags("uri", "/api/c1/callable/{id}").timer().totalTime(TimeUnit.SECONDS))
 						.isEqualTo(2L);
-		// once the async dispatch is complete, it should no longer contribute to the
-		// activeTasks count
-		assertThat(this.registry.get("my.long.request").tags("region", "test")
-				.longTaskTimer().activeTasks()).isEqualTo(0);
 	}
 
 	@Test
 	public void asyncRequestThatThrowsUncheckedException() throws Exception {
 		MvcResult result = this.mvc.perform(get("/api/c1/completableFutureException"))
 				.andExpect(request().asyncStarted()).andReturn();
-		// once the async dispatch is complete, it should no longer contribute to the
-		// activeTasks count
-		assertThat(this.registry.get("my.long.request.exception").longTaskTimer()
-				.activeTasks()).isEqualTo(1);
 		assertThatExceptionOfType(NestedServletException.class)
 				.isThrownBy(() -> this.mvc.perform(asyncDispatch(result)))
 				.withRootCauseInstanceOf(RuntimeException.class);
 		assertThat(this.registry.get("http.server.requests")
 				.tags("uri", "/api/c1/completableFutureException").timer().count())
 						.isEqualTo(1);
-		// once the async dispatch is complete, it should no longer contribute to the
-		// activeTasks count
-		assertThat(this.registry.get("my.long.request.exception").longTaskTimer()
-				.activeTasks()).isEqualTo(0);
 	}
 
 	@Test
@@ -250,8 +247,8 @@ public class WebMvcMetricsFilterTests {
 				result.set(this.mvc.perform(get("/api/c1/completableFuture/{id}", 1))
 						.andExpect(request().asyncStarted()).andReturn());
 			}
-			catch (Exception e) {
-				fail("Failed to execute async request", e);
+			catch (Exception ex) {
+				fail("Failed to execute async request", ex);
 			}
 		});
 		backgroundRequest.start();
@@ -363,7 +360,7 @@ public class WebMvcMetricsFilterTests {
 		@Bean
 		WebMvcMetricsFilter webMetricsFilter(MeterRegistry registry,
 				WebApplicationContext ctx) {
-			return new WebMvcMetricsFilter(ctx, registry, new DefaultWebMvcTagsProvider(),
+			return new WebMvcMetricsFilter(registry, new DefaultWebMvcTagsProvider(),
 					"http.server.requests", true);
 		}
 
@@ -438,6 +435,14 @@ public class WebMvcMetricsFilterTests {
 		@GetMapping("/error/{id}")
 		public String alwaysThrowsException(@PathVariable Long id) {
 			throw new IllegalStateException("Boom on " + id + "!");
+		}
+
+		@Timed
+		@GetMapping("/anonymousError/{id}")
+		public String alwaysThrowsAnonymousException(@PathVariable Long id)
+				throws Exception {
+			throw new Exception("this exception won't have a simple class name") {
+			};
 		}
 
 		@Timed
